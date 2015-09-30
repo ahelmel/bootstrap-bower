@@ -2,13 +2,14 @@
  * angular-ui-bootstrap
  * http://angular-ui.github.io/bootstrap/
 
- * Version: 0.13.4 - 2015-09-03
+ * Version: 0.14.0-SNAPSHOT - 2015-09-30
  * License: MIT
  */
-angular.module("ui.bootstrap", ["ui.bootstrap.collapse","ui.bootstrap.accordion","ui.bootstrap.alert","ui.bootstrap.bindHtml","ui.bootstrap.buttons","ui.bootstrap.carousel","ui.bootstrap.dateparser","ui.bootstrap.position","ui.bootstrap.datepicker","ui.bootstrap.dropdown","ui.bootstrap.modal","ui.bootstrap.pagination","ui.bootstrap.tooltip","ui.bootstrap.popover","ui.bootstrap.progressbar","ui.bootstrap.rating","ui.bootstrap.tabs","ui.bootstrap.timepicker","ui.bootstrap.transition","ui.bootstrap.typeahead"]);
+angular.module("ui.bootstrap", ["ui.bootstrap.collapse","ui.bootstrap.accordion","ui.bootstrap.alert","ui.bootstrap.buttons","ui.bootstrap.carousel","ui.bootstrap.dateparser","ui.bootstrap.position","ui.bootstrap.datepicker","ui.bootstrap.dropdown","ui.bootstrap.stackedMap","ui.bootstrap.modal","ui.bootstrap.pagination","ui.bootstrap.tooltip","ui.bootstrap.popover","ui.bootstrap.progressbar","ui.bootstrap.rating","ui.bootstrap.tabs","ui.bootstrap.timepicker","ui.bootstrap.typeahead"]);
 angular.module('ui.bootstrap.collapse', [])
 
-  .directive('collapse', ['$animate', function($animate) {
+  .directive('uibCollapse', ['$animate', '$injector', function($animate, $injector) {
+    var $animateCss = $injector.has('$animateCss') ? $injector.get('$animateCss') : null;
     return {
       link: function(scope, element, attrs) {
         function expand() {
@@ -17,14 +18,23 @@ angular.module('ui.bootstrap.collapse', [])
             .attr('aria-expanded', true)
             .attr('aria-hidden', false);
 
-          $animate.addClass(element, 'in', {
-            to: { height: element[0].scrollHeight + 'px' }
-          }).then(expandDone);
+          if ($animateCss) {
+            $animateCss(element, {
+              addClass: 'in',
+              easing: 'ease',
+              to: { height: element[0].scrollHeight + 'px' }
+            }).start().done(expandDone);
+          } else {
+            $animate.addClass(element, 'in', {
+              to: { height: element[0].scrollHeight + 'px' }
+            }).then(expandDone);
+          }
         }
 
         function expandDone() {
-          element.removeClass('collapsing');
-          element.css({height: 'auto'});
+          element.removeClass('collapsing')
+            .addClass('collapse')
+            .css({height: 'auto'});
         }
 
         function collapse() {
@@ -44,15 +54,107 @@ angular.module('ui.bootstrap.collapse', [])
             .attr('aria-expanded', false)
             .attr('aria-hidden', true);
 
-          $animate.removeClass(element, 'in', {
-            to: {height: '0'}
-          }).then(collapseDone);
+          if ($animateCss) {
+            $animateCss(element, {
+              removeClass: 'in',
+              to: {height: '0'}
+            }).start().done(collapseDone);
+          } else {
+            $animate.removeClass(element, 'in', {
+              to: {height: '0'}
+            }).then(collapseDone);
+          }
         }
 
         function collapseDone() {
           element.css({height: '0'}); // Required so that collapse works when animation is disabled
-          element.removeClass('collapsing');
-          element.addClass('collapse');
+          element.removeClass('collapsing')
+            .addClass('collapse');
+        }
+
+        scope.$watch(attrs.uibCollapse, function(shouldCollapse) {
+          if (shouldCollapse) {
+            collapse();
+          } else {
+            expand();
+          }
+        });
+      }
+    };
+  }]);
+
+/* Deprecated collapse below */
+
+angular.module('ui.bootstrap.collapse')
+
+  .value('$collapseSuppressWarning', false)
+
+  .directive('collapse', ['$animate', '$injector', '$log', '$collapseSuppressWarning', function($animate, $injector, $log, $collapseSuppressWarning) {
+    var $animateCss = $injector.has('$animateCss') ? $injector.get('$animateCss') : null;
+    return {
+      link: function(scope, element, attrs) {
+        if (!$collapseSuppressWarning) {
+          $log.warn('collapse is now deprecated. Use uib-collapse instead.');
+        }
+
+        function expand() {
+          element.removeClass('collapse')
+            .addClass('collapsing')
+            .attr('aria-expanded', true)
+            .attr('aria-hidden', false);
+
+          if ($animateCss) {
+            $animateCss(element, {
+              addClass: 'in',
+              easing: 'ease',
+              to: { height: element[0].scrollHeight + 'px' }
+            }).start().done(expandDone);
+          } else {
+            $animate.addClass(element, 'in', {
+              to: { height: element[0].scrollHeight + 'px' }
+            }).then(expandDone);
+          }
+        }
+
+        function expandDone() {
+          element.removeClass('collapsing')
+            .addClass('collapse')
+            .css({height: 'auto'});
+        }
+
+        function collapse() {
+          if (!element.hasClass('collapse') && !element.hasClass('in')) {
+            return collapseDone();
+          }
+
+          element
+            // IMPORTANT: The height must be set before adding "collapsing" class.
+            // Otherwise, the browser attempts to animate from height 0 (in
+            // collapsing class) to the given height here.
+            .css({height: element[0].scrollHeight + 'px'})
+            // initially all panel collapse have the collapse class, this removal
+            // prevents the animation from jumping to collapsed state
+            .removeClass('collapse')
+            .addClass('collapsing')
+            .attr('aria-expanded', false)
+            .attr('aria-hidden', true);
+
+          if ($animateCss) {
+            $animateCss(element, {
+              removeClass: 'in',
+              to: {height: '0'}
+            }).start().done(collapseDone);
+          } else {
+            $animate.removeClass(element, 'in', {
+              to: {height: '0'}
+            }).then(collapseDone);
+          }
+        }
+
+        function collapseDone() {
+          element.css({height: '0'}); // Required so that collapse works when animation is disabled
+          element.removeClass('collapsing')
+            .addClass('collapse');
         }
 
         scope.$watch(attrs.collapse, function(shouldCollapse) {
@@ -68,11 +170,11 @@ angular.module('ui.bootstrap.collapse', [])
 
 angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
 
-.constant('accordionConfig', {
+.constant('uibAccordionConfig', {
   closeOthers: true
 })
 
-.controller('AccordionController', ['$scope', '$attrs', 'accordionConfig', function($scope, $attrs, accordionConfig) {
+.controller('UibAccordionController', ['$scope', '$attrs', 'uibAccordionConfig', function($scope, $attrs, accordionConfig) {
   // This array keeps track of the accordion groups
   this.groups = [];
 
@@ -111,13 +213,11 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
 
 // The accordion directive simply sets up the directive controller
 // and adds an accordion CSS class to itself element.
-.directive('accordion', function() {
+.directive('uibAccordion', function() {
   return {
-    restrict: 'EA',
-    controller: 'AccordionController',
+    controller: 'UibAccordionController',
     controllerAs: 'accordion',
     transclude: true,
-    replace: false,
     templateUrl: function(element, attrs) {
       return attrs.templateUrl || 'template/accordion/accordion.html';
     }
@@ -125,10 +225,9 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
 })
 
 // The accordion-group directive indicates a block of html that will expand and collapse in an accordion
-.directive('accordionGroup', function() {
+.directive('uibAccordionGroup', function() {
   return {
-    require: '^accordion',         // We need this directive to be inside an accordion
-    restrict: 'EA',
+    require: '^uibAccordion',         // We need this directive to be inside an accordion
     transclude: true,              // It transcludes the contents of the directive into the template
     replace: true,                // The element containing the directive will be replaced with the template
     templateUrl: function(element, attrs) {
@@ -150,7 +249,7 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
       scope.openClass = attrs.openClass || 'panel-open';
       scope.panelClass = attrs.panelClass;
       scope.$watch('isOpen', function(value) {
-        element.toggleClass(scope.openClass, value);
+        element.toggleClass(scope.openClass, !!value);
         if (value) {
           accordionCtrl.closeOthers(scope);
         }
@@ -168,17 +267,13 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
 })
 
 // Use accordion-heading below an accordion-group to provide a heading containing HTML
-// <accordion-group>
-//   <accordion-heading>Heading containing HTML - <img src="..."></accordion-heading>
-// </accordion-group>
-.directive('accordionHeading', function() {
+.directive('uibAccordionHeading', function() {
   return {
-    restrict: 'EA',
     transclude: true,   // Grab the contents to be used as the heading
     template: '',       // In effect remove this element!
     replace: true,
-    require: '^accordionGroup',
-    link: function(scope, element, attr, accordionGroupCtrl, transclude) {
+    require: '^uibAccordionGroup',
+    link: function(scope, element, attrs, accordionGroupCtrl, transclude) {
       // Pass the heading to the accordion-group controller
       // so that it can be transcluded into the right place in the template
       // [The second parameter to transclude causes the elements to be cloned so that they work in ng-repeat]
@@ -189,15 +284,12 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
 
 // Use in the accordion-group template to indicate where you want the heading to be transcluded
 // You must provide the property on the accordion-group controller that will hold the transcluded element
-// <div class="accordion-group">
-//   <div class="accordion-heading" ><a ... accordion-transclude="heading">...</a></div>
-//   ...
-// </div>
-.directive('accordionTransclude', function() {
+.directive('uibAccordionTransclude', function() {
   return {
-    require: '^accordionGroup',
-    link: function(scope, element, attr, controller) {
-      scope.$watch(function() { return controller[attr.accordionTransclude]; }, function(heading) {
+    require: ['?^uibAccordionGroup', '?^accordionGroup'],
+    link: function(scope, element, attrs, controller) {
+      controller = controller[0] ? controller[0] : controller[1]; // Delete after we remove deprecation
+      scope.$watch(function() { return controller[attrs.uibAccordionTransclude]; }, function(heading) {
         if (heading) {
           element.find('span').html('');
           element.find('span').append(heading);
@@ -205,20 +297,131 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
       });
     }
   };
-})
+});
 
-;
+/* Deprecated accordion below */
+
+angular.module('ui.bootstrap.accordion')
+
+  .value('$accordionSuppressWarning', false)
+
+  .directive('accordion', ['$log', '$accordionSuppressWarning', function($log, $accordionSuppressWarning) {
+    return {
+      restrict: 'EA',
+      controller: 'UibAccordionController',
+      controllerAs: 'accordion',
+      transclude: true,
+      replace: false,
+      templateUrl: function(element, attrs) {
+        return attrs.templateUrl || 'template/accordion/accordion.html';
+      },
+      link: function() {
+        if (!$accordionSuppressWarning) {
+          $log.warn('accordion is now deprecated. Use uib-accordion instead.');
+        }
+      }
+    };
+  }])
+
+  .directive('accordionGroup', ['$log', '$accordionSuppressWarning', function($log, $accordionSuppressWarning) {
+    return {
+      require: '^accordion',         // We need this directive to be inside an accordion
+      restrict: 'EA',
+      transclude: true,              // It transcludes the contents of the directive into the template
+      replace: true,                // The element containing the directive will be replaced with the template
+      templateUrl: function(element, attrs) {
+        return attrs.templateUrl || 'template/accordion/accordion-group.html';
+      },
+      scope: {
+        heading: '@',               // Interpolate the heading attribute onto this scope
+        isOpen: '=?',
+        isDisabled: '=?'
+      },
+      controller: function() {
+        this.setHeading = function(element) {
+          this.heading = element;
+        };
+      },
+      link: function(scope, element, attrs, accordionCtrl) {
+        if (!$accordionSuppressWarning) {
+          $log.warn('accordion-group is now deprecated. Use uib-accordion-group instead.');
+        }
+
+        accordionCtrl.addGroup(scope);
+
+        scope.openClass = attrs.openClass || 'panel-open';
+        scope.panelClass = attrs.panelClass;
+        scope.$watch('isOpen', function(value) {
+          element.toggleClass(scope.openClass, !!value);
+          if (value) {
+            accordionCtrl.closeOthers(scope);
+          }
+        });
+
+        scope.toggleOpen = function($event) {
+          if (!scope.isDisabled) {
+            if (!$event || $event.which === 32) {
+              scope.isOpen = !scope.isOpen;
+            }
+          }
+        };
+      }
+    };
+  }])
+
+  .directive('accordionHeading', ['$log', '$accordionSuppressWarning', function($log, $accordionSuppressWarning) {
+    return {
+      restrict: 'EA',
+      transclude: true,   // Grab the contents to be used as the heading
+      template: '',       // In effect remove this element!
+      replace: true,
+      require: '^accordionGroup',
+      link: function(scope, element, attr, accordionGroupCtrl, transclude) {
+        if (!$accordionSuppressWarning) {
+          $log.warn('accordion-heading is now deprecated. Use uib-accordion-heading instead.');
+        }
+        // Pass the heading to the accordion-group controller
+        // so that it can be transcluded into the right place in the template
+        // [The second parameter to transclude causes the elements to be cloned so that they work in ng-repeat]
+        accordionGroupCtrl.setHeading(transclude(scope, angular.noop));
+      }
+    };
+  }])
+
+  .directive('accordionTransclude', ['$log', '$accordionSuppressWarning', function($log, $accordionSuppressWarning) {
+    return {
+      require: '^accordionGroup',
+      link: function(scope, element, attr, controller) {
+        if (!$accordionSuppressWarning) {
+          $log.warn('accordion-transclude is now deprecated. Use uib-accordion-transclude instead.');
+        }
+
+        scope.$watch(function() { return controller[attr.accordionTransclude]; }, function(heading) {
+          if (heading) {
+            element.find('span').html('');
+            element.find('span').append(heading);
+          }
+        });
+      }
+    };
+  }]);
+
 
 angular.module('ui.bootstrap.alert', [])
 
-.controller('AlertController', ['$scope', '$attrs', function($scope, $attrs) {
+.controller('UibAlertController', ['$scope', '$attrs', '$timeout', function($scope, $attrs, $timeout) {
   $scope.closeable = !!$attrs.close;
-  this.close = $scope.close;
+
+  if (angular.isDefined($attrs.dismissOnTimeout)) {
+    $timeout(function() {
+      $scope.close();
+    }, parseInt($attrs.dismissOnTimeout, 10));
+  }
 }])
 
-.directive('alert', function() {
+.directive('uibAlert', function() {
   return {
-    controller: 'AlertController',
+    controller: 'UibAlertController',
     controllerAs: 'alert',
     templateUrl: function(element, attrs) {
       return attrs.templateUrl || 'template/alert/alert.html';
@@ -230,50 +433,51 @@ angular.module('ui.bootstrap.alert', [])
       close: '&'
     }
   };
-})
+});
 
-.directive('dismissOnTimeout', ['$timeout', function($timeout) {
-  return {
-    require: 'alert',
-    link: function(scope, element, attrs, alertCtrl) {
-      $timeout(function() {
-        alertCtrl.close();
-      }, parseInt(attrs.dismissOnTimeout, 10));
-    }
-  };
-}]);
+/* Deprecated alert below */
 
-angular.module('ui.bootstrap.bindHtml', [])
+angular.module('ui.bootstrap.alert')
 
-  .value('$bindHtmlUnsafeSuppressDeprecated', false)
+  .value('$alertSuppressWarning', false)
 
-  .directive('bindHtmlUnsafe', ['$log', '$bindHtmlUnsafeSuppressDeprecated', function ($log, $bindHtmlUnsafeSuppressDeprecated) {
-    return function (scope, element, attr) {
-      if (!$bindHtmlUnsafeSuppressDeprecated) {
-        $log.warn('bindHtmlUnsafe is now deprecated. Use ngBindHtml instead');
+  .directive('alert', ['$log', '$alertSuppressWarning', function($log, $alertSuppressWarning) {
+    return {
+      controller: 'UibAlertController',
+      controllerAs: 'alert',
+      templateUrl: function(element, attrs) {
+        return attrs.templateUrl || 'template/alert/alert.html';
+      },
+      transclude: true,
+      replace: true,
+      scope: {
+        type: '@',
+        close: '&'
+      },
+      link: function() {
+        if (!$alertSuppressWarning) {
+          $log.warn('alert is now deprecated. Use uib-alert instead.');
+        }
       }
-      element.addClass('ng-binding').data('$binding', attr.bindHtmlUnsafe);
-      scope.$watch(attr.bindHtmlUnsafe, function bindHtmlUnsafeWatchAction(value) {
-        element.html(value || '');
-      });
     };
   }]);
+
 angular.module('ui.bootstrap.buttons', [])
 
-.constant('buttonConfig', {
+.constant('uibButtonConfig', {
   activeClass: 'active',
   toggleEvent: 'click'
 })
 
-.controller('ButtonsController', ['buttonConfig', function(buttonConfig) {
+.controller('UibButtonsController', ['uibButtonConfig', function(buttonConfig) {
   this.activeClass = buttonConfig.activeClass || 'active';
   this.toggleEvent = buttonConfig.toggleEvent || 'click';
 }])
 
-.directive('btnRadio', function() {
+.directive('uibBtnRadio', function() {
   return {
-    require: ['btnRadio', 'ngModel'],
-    controller: 'ButtonsController',
+    require: ['uibBtnRadio', 'ngModel'],
+    controller: 'UibButtonsController',
     controllerAs: 'buttons',
     link: function(scope, element, attrs, ctrls) {
       var buttonsCtrl = ctrls[0], ngModelCtrl = ctrls[1];
@@ -282,11 +486,11 @@ angular.module('ui.bootstrap.buttons', [])
 
       //model -> UI
       ngModelCtrl.$render = function() {
-        element.toggleClass(buttonsCtrl.activeClass, angular.equals(ngModelCtrl.$modelValue, scope.$eval(attrs.btnRadio)));
+        element.toggleClass(buttonsCtrl.activeClass, angular.equals(ngModelCtrl.$modelValue, scope.$eval(attrs.uibBtnRadio)));
       };
 
       //ui->model
-      element.bind(buttonsCtrl.toggleEvent, function() {
+      element.on(buttonsCtrl.toggleEvent, function() {
         if (attrs.disabled) {
           return;
         }
@@ -295,7 +499,7 @@ angular.module('ui.bootstrap.buttons', [])
 
         if (!isActive || angular.isDefined(attrs.uncheckable)) {
           scope.$apply(function() {
-            ngModelCtrl.$setViewValue(isActive ? null : scope.$eval(attrs.btnRadio));
+            ngModelCtrl.$setViewValue(isActive ? null : scope.$eval(attrs.uibBtnRadio));
             ngModelCtrl.$render();
           });
         }
@@ -304,10 +508,10 @@ angular.module('ui.bootstrap.buttons', [])
   };
 })
 
-.directive('btnCheckbox', ['$document', function($document) {
+.directive('uibBtnCheckbox', ['$document', function($document) {
   return {
-    require: ['btnCheckbox', 'ngModel'],
-    controller: 'ButtonsController',
+    require: ['uibBtnCheckbox', 'ngModel'],
+    controller: 'UibButtonsController',
     controllerAs: 'button',
     link: function(scope, element, attrs, ctrls) {
       var buttonsCtrl = ctrls[0], ngModelCtrl = ctrls[1];
@@ -322,9 +526,8 @@ angular.module('ui.bootstrap.buttons', [])
         return getCheckboxValue(attrs.btnCheckboxFalse, false);
       }
 
-      function getCheckboxValue(attributeValue, defaultValue) {
-        var val = scope.$eval(attributeValue);
-        return angular.isDefined(val) ? val : defaultValue;
+      function getCheckboxValue(attribute, defaultValue) {
+        return angular.isDefined(attribute) ? scope.$eval(attribute) : defaultValue;
       }
 
       //model -> UI
@@ -333,7 +536,7 @@ angular.module('ui.bootstrap.buttons', [])
       };
 
       //ui->model
-      element.bind(buttonsCtrl.toggleEvent, function() {
+      element.on(buttonsCtrl.toggleEvent, function() {
         if (attrs.disabled) {
           return;
         }
@@ -359,6 +562,110 @@ angular.module('ui.bootstrap.buttons', [])
   };
 }]);
 
+/* Deprecated buttons below */
+
+angular.module('ui.bootstrap.buttons')
+
+  .value('$buttonsSuppressWarning', false)
+
+  .directive('btnRadio', ['$log', '$buttonsSuppressWarning', function($log, $buttonsSuppressWarning) {
+    return {
+      require: ['btnRadio', 'ngModel'],
+      controller: 'UibButtonsController',
+      controllerAs: 'buttons',
+      link: function(scope, element, attrs, ctrls) {
+        if (!$buttonsSuppressWarning) {
+          $log.warn('btn-radio is now deprecated. Use uib-btn-radio instead.');
+        }
+
+        var buttonsCtrl = ctrls[0], ngModelCtrl = ctrls[1];
+
+        element.find('input').css({display: 'none'});
+
+        //model -> UI
+        ngModelCtrl.$render = function() {
+          element.toggleClass(buttonsCtrl.activeClass, angular.equals(ngModelCtrl.$modelValue, scope.$eval(attrs.btnRadio)));
+        };
+
+        //ui->model
+        element.bind(buttonsCtrl.toggleEvent, function() {
+          if (attrs.disabled) {
+            return;
+          }
+
+          var isActive = element.hasClass(buttonsCtrl.activeClass);
+
+          if (!isActive || angular.isDefined(attrs.uncheckable)) {
+            scope.$apply(function() {
+              ngModelCtrl.$setViewValue(isActive ? null : scope.$eval(attrs.btnRadio));
+              ngModelCtrl.$render();
+            });
+          }
+        });
+      }
+    };
+  }])
+
+  .directive('btnCheckbox', ['$document', '$log', '$buttonsSuppressWarning', function($document, $log, $buttonsSuppressWarning) {
+    return {
+      require: ['btnCheckbox', 'ngModel'],
+      controller: 'UibButtonsController',
+      controllerAs: 'button',
+      link: function(scope, element, attrs, ctrls) {
+        if (!$buttonsSuppressWarning) {
+          $log.warn('btn-checkbox is now deprecated. Use uib-btn-checkbox instead.');
+        }
+
+        var buttonsCtrl = ctrls[0], ngModelCtrl = ctrls[1];
+
+        element.find('input').css({display: 'none'});
+
+        function getTrueValue() {
+          return getCheckboxValue(attrs.btnCheckboxTrue, true);
+        }
+
+        function getFalseValue() {
+          return getCheckboxValue(attrs.btnCheckboxFalse, false);
+        }
+
+        function getCheckboxValue(attributeValue, defaultValue) {
+          var val = scope.$eval(attributeValue);
+          return angular.isDefined(val) ? val : defaultValue;
+        }
+
+        //model -> UI
+        ngModelCtrl.$render = function() {
+          element.toggleClass(buttonsCtrl.activeClass, angular.equals(ngModelCtrl.$modelValue, getTrueValue()));
+        };
+
+        //ui->model
+        element.bind(buttonsCtrl.toggleEvent, function() {
+          if (attrs.disabled) {
+            return;
+          }
+
+          scope.$apply(function() {
+            ngModelCtrl.$setViewValue(element.hasClass(buttonsCtrl.activeClass) ? getFalseValue() : getTrueValue());
+            ngModelCtrl.$render();
+          });
+        });
+
+        //accessibility
+        element.on('keypress', function(e) {
+          if (attrs.disabled || e.which !== 32 || $document[0].activeElement !== element[0]) {
+            return;
+          }
+
+          scope.$apply(function() {
+            ngModelCtrl.$setViewValue(element.hasClass(buttonsCtrl.activeClass) ? getFalseValue() : getTrueValue());
+            ngModelCtrl.$render();
+          });
+        });
+      }
+    };
+  }]);
+
+
 /**
 * @ngdoc overview
 * @name ui.bootstrap.carousel
@@ -368,7 +675,7 @@ angular.module('ui.bootstrap.buttons', [])
 *
 */
 angular.module('ui.bootstrap.carousel', [])
-.controller('CarouselController', ['$scope', '$element', '$interval', '$animate', function ($scope, $element, $interval, $animate) {
+.controller('CarouselController', ['$scope', '$element', '$interval', '$animate', function($scope, $element, $interval, $animate) {
   var self = this,
     slides = self.slides = $scope.slides = [],
     NEW_ANIMATE = angular.version.minor >= 4,
@@ -407,7 +714,7 @@ angular.module('ui.bootstrap.carousel', [])
 
       $scope.$currentTransition = true;
       if (NEW_ANIMATE) {
-        $animate.on('addClass', slide.$element, function (element, phase) {
+        $animate.on('addClass', slide.$element, function(element, phase) {
           if (phase === 'close') {
             $scope.$currentTransition = null;
             $animate.off('addClass', element);
@@ -427,7 +734,7 @@ angular.module('ui.bootstrap.carousel', [])
     restartTimer();
   }
 
-  $scope.$on('$destroy', function () {
+  $scope.$on('$destroy', function() {
     destroyed = true;
   });
 
@@ -469,7 +776,7 @@ angular.module('ui.bootstrap.carousel', [])
   $scope.prev = function() {
     var newIndex = self.getCurrentIndex() - 1 < 0 ? slides.length - 1 : self.getCurrentIndex() - 1;
 
-    if ($scope.noWrap() && newIndex === slides.length - 1){
+    if ($scope.noWrap() && newIndex === slides.length - 1) {
       $scope.pause();
       return;
     }
@@ -526,8 +833,8 @@ angular.module('ui.bootstrap.carousel', [])
     slides.push(slide);
     //if this is the first slide or the slide is set to active, select it
     if(slides.length === 1 || slide.active) {
-      self.select(slides[slides.length-1]);
-      if (slides.length == 1) {
+      self.select(slides[slides.length - 1]);
+      if (slides.length === 1) {
         $scope.play();
       }
     } else {
@@ -546,7 +853,7 @@ angular.module('ui.bootstrap.carousel', [])
     slides.splice(index, 1);
     if (slides.length > 0 && slide.active) {
       if (index >= slides.length) {
-        self.select(slides[index-1]);
+        self.select(slides[index - 1]);
       } else {
         self.select(slides[index]);
       }
@@ -715,7 +1022,7 @@ function ($injector, $animate) {
   }
 
   return {
-    beforeAddClass: function (element, className, done) {
+    beforeAddClass: function(element, className, done) {
       // Due to transclusion, noTransition property is on parent's scope
       if (className == 'active' && element.parent() &&
           !element.parent().data(NO_TRANSITION)) {
@@ -759,25 +1066,21 @@ function ($injector, $animate) {
             .start()
             .done(removeClassFn);
         } else {
-          $animate.addClass(element, directionClass).then(function () {
+          $animate.addClass(element, directionClass).then(function() {
             if (!stopped) {
               removeClassFn();
             }
             done();
           });
         }
-        return function () {
+        return function() {
           stopped = true;
         };
       }
       done();
     }
   };
-
-}])
-
-
-;
+}]);
 
 angular.module('ui.bootstrap.dateparser', [])
 
@@ -785,100 +1088,109 @@ angular.module('ui.bootstrap.dateparser', [])
   // Pulled from https://github.com/mbostock/d3/blob/master/src/format/requote.js
   var SPECIAL_CHARACTERS_REGEXP = /[\\\^\$\*\+\?\|\[\]\(\)\.\{\}]/g;
 
-  this.parsers = {};
+  var localeId;
+  var formatCodeToRegex;
 
-  var formatCodeToRegex = {
-    'yyyy': {
-      regex: '\\d{4}',
-      apply: function(value) { this.year = +value; }
-    },
-    'yy': {
-      regex: '\\d{2}',
-      apply: function(value) { this.year = +value + 2000; }
-    },
-    'y': {
-      regex: '\\d{1,4}',
-      apply: function(value) { this.year = +value; }
-    },
-    'MMMM': {
-      regex: $locale.DATETIME_FORMATS.MONTH.join('|'),
-      apply: function(value) { this.month = $locale.DATETIME_FORMATS.MONTH.indexOf(value); }
-    },
-    'MMM': {
-      regex: $locale.DATETIME_FORMATS.SHORTMONTH.join('|'),
-      apply: function(value) { this.month = $locale.DATETIME_FORMATS.SHORTMONTH.indexOf(value); }
-    },
-    'MM': {
-      regex: '0[1-9]|1[0-2]',
-      apply: function(value) { this.month = value - 1; }
-    },
-    'M': {
-      regex: '[1-9]|1[0-2]',
-      apply: function(value) { this.month = value - 1; }
-    },
-    'dd': {
-      regex: '[0-2][0-9]{1}|3[0-1]{1}',
-      apply: function(value) { this.date = +value; }
-    },
-    'd': {
-      regex: '[1-2]?[0-9]{1}|3[0-1]{1}',
-      apply: function(value) { this.date = +value; }
-    },
-    'EEEE': {
-      regex: $locale.DATETIME_FORMATS.DAY.join('|')
-    },
-    'EEE': {
-      regex: $locale.DATETIME_FORMATS.SHORTDAY.join('|')
-    },
-    'HH': {
-      regex: '(?:0|1)[0-9]|2[0-3]',
-      apply: function(value) { this.hours = +value; }
-    },
-    'hh': {
-      regex: '0[0-9]|1[0-2]',
-      apply: function(value) { this.hours = +value; }
-    },
-    'H': {
-      regex: '1?[0-9]|2[0-3]',
-      apply: function(value) { this.hours = +value; }
-    },
-    'h': {
-      regex: '[0-9]|1[0-2]',
-      apply: function(value) { this.hours = +value; }
-    },
-    'mm': {
-      regex: '[0-5][0-9]',
-      apply: function(value) { this.minutes = +value; }
-    },
-    'm': {
-      regex: '[0-9]|[1-5][0-9]',
-      apply: function(value) { this.minutes = +value; }
-    },
-    'sss': {
-      regex: '[0-9][0-9][0-9]',
-      apply: function(value) { this.milliseconds = +value; }
-    },
-    'ss': {
-      regex: '[0-5][0-9]',
-      apply: function(value) { this.seconds = +value; }
-    },
-    's': {
-      regex: '[0-9]|[1-5][0-9]',
-      apply: function(value) { this.seconds = +value; }
-    },
-    'a': {
-      regex: $locale.DATETIME_FORMATS.AMPMS.join('|'),
-      apply: function(value) {
-        if (this.hours === 12) {
-          this.hours = 0;
-        }
+  this.init = function() {
+    localeId = $locale.id;
 
-        if (value === 'PM') {
-          this.hours += 12;
+    this.parsers = {};
+
+    formatCodeToRegex = {
+      'yyyy': {
+        regex: '\\d{4}',
+        apply: function(value) { this.year = +value; }
+      },
+      'yy': {
+        regex: '\\d{2}',
+        apply: function(value) { this.year = +value + 2000; }
+      },
+      'y': {
+        regex: '\\d{1,4}',
+        apply: function(value) { this.year = +value; }
+      },
+      'MMMM': {
+        regex: $locale.DATETIME_FORMATS.MONTH.join('|'),
+        apply: function(value) { this.month = $locale.DATETIME_FORMATS.MONTH.indexOf(value); }
+      },
+      'MMM': {
+        regex: $locale.DATETIME_FORMATS.SHORTMONTH.join('|'),
+        apply: function(value) { this.month = $locale.DATETIME_FORMATS.SHORTMONTH.indexOf(value); }
+      },
+      'MM': {
+        regex: '0[1-9]|1[0-2]',
+        apply: function(value) { this.month = value - 1; }
+      },
+      'M': {
+        regex: '[1-9]|1[0-2]',
+        apply: function(value) { this.month = value - 1; }
+      },
+      'dd': {
+        regex: '[0-2][0-9]{1}|3[0-1]{1}',
+        apply: function(value) { this.date = +value; }
+      },
+      'd': {
+        regex: '[1-2]?[0-9]{1}|3[0-1]{1}',
+        apply: function(value) { this.date = +value; }
+      },
+      'EEEE': {
+        regex: $locale.DATETIME_FORMATS.DAY.join('|')
+      },
+      'EEE': {
+        regex: $locale.DATETIME_FORMATS.SHORTDAY.join('|')
+      },
+      'HH': {
+        regex: '(?:0|1)[0-9]|2[0-3]',
+        apply: function(value) { this.hours = +value; }
+      },
+      'hh': {
+        regex: '0[0-9]|1[0-2]',
+        apply: function(value) { this.hours = +value; }
+      },
+      'H': {
+        regex: '1?[0-9]|2[0-3]',
+        apply: function(value) { this.hours = +value; }
+      },
+      'h': {
+        regex: '[0-9]|1[0-2]',
+        apply: function(value) { this.hours = +value; }
+      },
+      'mm': {
+        regex: '[0-5][0-9]',
+        apply: function(value) { this.minutes = +value; }
+      },
+      'm': {
+        regex: '[0-9]|[1-5][0-9]',
+        apply: function(value) { this.minutes = +value; }
+      },
+      'sss': {
+        regex: '[0-9][0-9][0-9]',
+        apply: function(value) { this.milliseconds = +value; }
+      },
+      'ss': {
+        regex: '[0-5][0-9]',
+        apply: function(value) { this.seconds = +value; }
+      },
+      's': {
+        regex: '[0-9]|[1-5][0-9]',
+        apply: function(value) { this.seconds = +value; }
+      },
+      'a': {
+        regex: $locale.DATETIME_FORMATS.AMPMS.join('|'),
+        apply: function(value) {
+          if (this.hours === 12) {
+            this.hours = 0;
+          }
+
+          if (value === 'PM') {
+            this.hours += 12;
+          }
         }
       }
-    }
+    };
   };
+
+  this.init();
 
   function createParser(format) {
     var map = [], regex = format.split('');
@@ -914,6 +1226,10 @@ angular.module('ui.bootstrap.dateparser', [])
 
     format = $locale.DATETIME_FORMATS[format] || format;
     format = format.replace(SPECIAL_CHARACTERS_REGEXP, '\\$&');
+
+    if ($locale.id !== localeId) {
+      this.init();
+    }
 
     if (!this.parsers[format]) {
       this.parsers[format] = createParser(format);
@@ -1342,10 +1658,8 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
         return; // do nothing
       }
       $scope.select(self.activeDate);
-      focusElement();
     } else if (evt.ctrlKey && (key === 'up' || key === 'down')) {
       $scope.toggleMode(key === 'up' ? 1 : -1);
-      focusElement();
     } else {
       self.handleKeyDown(key, evt);
       self.refreshView();
@@ -1727,7 +2041,7 @@ function($compile, $parse, $document, $rootScope, $position, dateFilter, datePar
           delete options.initDate;
         }
         angular.forEach(options, function(value, option) {
-          datepickerEl.attr( cameltoDash(option), value );
+          datepickerEl.attr(cameltoDash(option), value);
         });
       }
 
@@ -1847,7 +2161,12 @@ function($compile, $parse, $document, $rootScope, $position, dateFilter, datePar
       });
 
       var documentClickBind = function(event) {
-        if (scope.isOpen && !(element[0].contains(event.target) || popupEl[0].contains(event.target))) {
+        var popup = $popup[0];
+        var dpContainsTarget = element[0].contains(event.target);
+        // The popup node may not be an element node
+        // In some browsers (IE) only element nodes have the 'contains' function
+        var popupContainsTarget = popup.contains !== undefined && popup.contains(event.target);
+        if (scope.isOpen && !(dpContainsTarget || popupContainsTarget)) {
           scope.$apply(function() {
             scope.isOpen = false;
           });
@@ -2196,7 +2515,7 @@ angular.module('ui.bootstrap.dropdown', ['ui.bootstrap.position'])
   return {
     controller: 'DropdownController',
     link: function(scope, element, attrs, dropdownCtrl) {
-      dropdownCtrl.init( element );
+      dropdownCtrl.init(element);
       element.addClass('dropdown');
     }
   };
@@ -2225,8 +2544,7 @@ angular.module('ui.bootstrap.dropdown', ['ui.bootstrap.position'])
   return {
     restrict: 'A',
     require: '?^dropdown',
-    link: function (scope, element, attrs, dropdownCtrl) {
-
+    link: function(scope, element, attrs, dropdownCtrl) {
       element.bind('keydown', function(e) {
         if ([38, 40].indexOf(e.which) !== -1) {
           e.preventDefault();
@@ -2287,7 +2605,7 @@ angular.module('ui.bootstrap.dropdown', ['ui.bootstrap.position'])
 
       // WAI-ARIA
       element.attr({ 'aria-haspopup': true, 'aria-expanded': false });
-      scope.$watch(dropdownCtrl.isOpen, function( isOpen ) {
+      scope.$watch(dropdownCtrl.isOpen, function(isOpen) {
         element.attr('aria-expanded', !!isOpen);
       });
 
@@ -2298,8 +2616,7 @@ angular.module('ui.bootstrap.dropdown', ['ui.bootstrap.position'])
   };
 });
 
-angular.module('ui.bootstrap.modal', [])
-
+angular.module('ui.bootstrap.stackedMap', [])
 /**
  * A helper, internal data structure that acts as a map but also allows getting / removing
  * elements in the LIFO order
@@ -2352,8 +2669,8 @@ angular.module('ui.bootstrap.modal', [])
         };
       }
     };
-  })
-
+  });
+angular.module('ui.bootstrap.modal', ['ui.bootstrap.stackedMap'])
 /**
  * A helper, internal data structure that stores all references attached to key
  */
@@ -2476,6 +2793,7 @@ angular.module('ui.bootstrap.modal', [])
       },
       link: function(scope, element, attrs) {
         element.addClass(attrs.windowClass || '');
+        element.addClass(attrs.windowTopClass || '');
         scope.size = attrs.size;
 
         scope.close = function(evt) {
@@ -2486,6 +2804,9 @@ angular.module('ui.bootstrap.modal', [])
             $modalStack.dismiss(modal.key, 'backdrop click');
           }
         };
+
+        // moved from template to fix issue #2280
+        element.on('click', scope.close);
 
         // This property is only added to the scope for the purpose of detecting when this directive is rendered.
         // We can detect that by using this property in the template associated with this directive and then use
@@ -2637,6 +2958,7 @@ angular.module('ui.bootstrap.modal', [])
           var modalBodyClass = modalWindow.openedClass || OPENED_MODAL_CLASS;
           openedClasses.remove(modalBodyClass, modalInstance);
           body.toggleClass(modalBodyClass, openedClasses.hasKey(modalBodyClass));
+          toggleTopWindowClass(true);
         });
         checkRemoveBackdrop();
 
@@ -2645,6 +2967,16 @@ angular.module('ui.bootstrap.modal', [])
           elementToReceiveFocus.focus();
         } else {
           body.focus();
+        }
+      }
+
+      // Add or remove "windowTopClass" from the top window in the stack
+      function toggleTopWindowClass(toggleSwitch) {
+        var modalWindow;
+
+        if (openedWindows.length() > 0) {
+          modalWindow = openedWindows.top().value;
+          modalWindow.modalDomEl.toggleClass(modalWindow.windowTopClass || '', toggleSwitch);
         }
       }
 
@@ -2744,13 +3076,16 @@ angular.module('ui.bootstrap.modal', [])
         var modalOpener = $document[0].activeElement,
           modalBodyClass = modal.openedClass || OPENED_MODAL_CLASS;
 
+        toggleTopWindowClass(false);
+
         openedWindows.add(modalInstance, {
           deferred: modal.deferred,
           renderDeferred: modal.renderDeferred,
           modalScope: modal.scope,
           backdrop: modal.backdrop,
           keyboard: modal.keyboard,
-          openedClass: modal.openedClass
+          openedClass: modal.openedClass,
+          windowTopClass: modal.windowTopClass
         });
 
         openedClasses.put(modalBodyClass, modalInstance);
@@ -2774,6 +3109,7 @@ angular.module('ui.bootstrap.modal', [])
         angularDomEl.attr({
           'template-url': modal.windowTemplateUrl,
           'window-class': modal.windowClass,
+          'window-top-class': modal.windowTopClass,
           'size': modal.size,
           'index': openedWindows.length() - 1,
           'animate': 'animate'
@@ -2998,6 +3334,7 @@ angular.module('ui.bootstrap.modal', [])
                   backdrop: modalOptions.backdrop,
                   keyboard: modalOptions.keyboard,
                   backdropClass: modalOptions.backdropClass,
+                  windowTopClass: modalOptions.windowTopClass,
                   windowClass: modalOptions.windowClass,
                   windowTemplateUrl: modalOptions.windowTemplateUrl,
                   size: modalOptions.size,
@@ -3262,7 +3599,7 @@ angular.module('ui.bootstrap.pagination', [])
  * function, placement as a function, inside, support for more triggers than
  * just mouse enter/leave, html tooltips, and selector delegation.
  */
-angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.bindHtml'])
+angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.stackedMap'])
 
 /**
  * The $tooltip service creates tooltip- and popover-like directives as well as
@@ -3325,8 +3662,20 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.b
    * Returns the actual instance of the $tooltip service.
    * TODO support multiple triggers
    */
-  this.$get = ['$window', '$compile', '$timeout', '$document', '$position', '$interpolate', '$rootScope', '$parse', function($window, $compile, $timeout, $document, $position, $interpolate, $rootScope, $parse) {
-    return function $tooltip(type, prefix, defaultTriggerShow, options) {
+  this.$get = ['$window', '$compile', '$timeout', '$document', '$position', '$interpolate', '$rootScope', '$parse', '$$stackedMap', function($window, $compile, $timeout, $document, $position, $interpolate, $rootScope, $parse, $$stackedMap) {
+    var openedTooltips = $$stackedMap.createNew();
+    $document.on('keypress', function(e) {
+      if (e.which === 27) {
+        var last = openedTooltips.top();
+        if (last) {
+          last.value.close();
+          openedTooltips.removeTop();
+          last = null;
+        }
+      }
+    });
+
+    return function $tooltip(ttType, prefix, defaultTriggerShow, options) {
       options = angular.extend({}, defaultOptions, globalOptions, options);
 
       /**
@@ -3354,7 +3703,7 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.b
         };
       }
 
-      var directiveName = snake_case(type);
+      var directiveName = snake_case(ttType);
 
       var startSym = $interpolate.startSymbol();
       var endSym = $interpolate.endSymbol();
@@ -3369,13 +3718,14 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.b
           'animation="animation" '+
           'is-open="isOpen"'+
           'origin-scope="origScope" '+
+          'style="visibility: hidden; display: block;"'+
           '>'+
         '</div>';
 
       return {
         restrict: 'EA',
         compile: function(tElem, tAttrs) {
-          var tooltipLinker = $compile( template );
+          var tooltipLinker = $compile(template);
 
           return function link(scope, element, attrs, tooltipCtrl) {
             var tooltip;
@@ -3388,29 +3738,27 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.b
             var hasEnableExp = angular.isDefined(attrs[prefix + 'Enable']);
             var ttScope = scope.$new(true);
             var repositionScheduled = false;
-            var isOpenExp = angular.isDefined(attrs[prefix + 'IsOpen']) ? $parse(attrs[prefix + 'IsOpen']) : false;
+            var isOpenParse = angular.isDefined(attrs[prefix + 'IsOpen']) ? $parse(attrs[prefix + 'IsOpen']) : false;
+            var contentParse = options.useContentExp ? $parse(attrs[ttType]) : false;
+            var observers = [];
 
             var positionTooltip = function() {
-              if (!tooltip) { return; }
+              // check if tooltip exists and is not empty
+              if (!tooltip || !tooltip.html()) { return; }
 
               if (!positionTimeout) {
                 positionTimeout = $timeout(function() {
-                  // Reset the positioning and box size for correct width and height values.
-                  tooltip.css({ top: 0, left: 0, width: 'auto', height: 'auto' });
+                  // Reset the positioning.
+                  tooltip.css({ top: 0, left: 0 });
 
-                  var ttBox = $position.position(tooltip);
+                  // Now set the calculated positioning.
                   var ttCss = $position.positionElements(element, tooltip, ttScope.placement, appendToBody);
                   ttCss.top += 'px';
                   ttCss.left += 'px';
-
-                  ttCss.width = ttBox.width + 'px';
-                  ttCss.height = ttBox.height + 'px';
-
-                  // Now set the calculated positioning and size.
+                  ttCss.visibility = 'visible';
                   tooltip.css(ttCss);
 
                   positionTimeout = null;
-
                 }, 0, false);
               }
             };
@@ -3421,6 +3769,9 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.b
             // By default, the tooltip is not open.
             // TODO add ability to start tooltip opened
             ttScope.isOpen = false;
+            openedTooltips.add(ttScope, {
+              close: hide
+            });
 
             function toggleTooltipBind() {
               if (!ttScope.isOpen) {
@@ -3449,16 +3800,16 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.b
               }
             }
 
-            function hideTooltipBind () {
+            function hideTooltipBind() {
               hide();
-              if (!$rootScope.$$phase) {
-                $rootScope.$digest();
-              }
             }
 
             // Show the tooltip popup element.
             function show() {
-              popupTimeout = null;
+              if (popupTimeout) {
+                $timeout.cancel(popupTimeout);
+                popupTimeout = null;
+              }
 
               // If there is a pending remove transition, we must cancel it, lest the
               // tooltip be mysteriously removed.
@@ -3468,34 +3819,36 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.b
               }
 
               // Don't show empty tooltips.
-              if (!(options.useContentExp ? ttScope.contentExp() : ttScope.content)) {
+              if (!ttScope.content) {
                 return angular.noop;
               }
 
               createTooltip();
 
               // And show the tooltip.
-              ttScope.isOpen = true;
-              if (isOpenExp) {
-                isOpenExp.assign(ttScope.origScope, ttScope.isOpen);
-              }
+              ttScope.$evalAsync(function() {
+                ttScope.isOpen = true;
+                if (isOpenParse && angular.isFunction(isOpenParse.assign)) {
+                  isOpenParse.assign(ttScope.origScope, ttScope.isOpen);
+                }
 
-              if (!$rootScope.$$phase) {
-                ttScope.$apply(); // digest required as $apply is not called
-              }
-
-              tooltip.css({ display: 'block' });
-
-              positionTooltip();
+                positionTooltip();
+              });
             }
 
             // Hide the tooltip popup element.
             function hide() {
-              // First things first: we don't show it anymore.
-              ttScope.isOpen = false;
-              if (isOpenExp) {
-                isOpenExp.assign(ttScope.origScope, ttScope.isOpen);
+              if (!ttScope) {
+                return;
               }
+
+              // First things first: we don't show it anymore.
+              ttScope.$evalAsync(function() {
+                ttScope.isOpen = false;
+                if (isOpenParse && angular.isFunction(isOpenParse.assign)) {
+                  isOpenParse.assign(ttScope.origScope, ttScope.isOpen);
+                }
+              });
 
               //if tooltip is going to be shown after delay, we must cancel this
               $timeout.cancel(popupTimeout);
@@ -3519,8 +3872,9 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.b
             function createTooltip() {
               // There can only be one tooltip element per directive shown at once.
               if (tooltip) {
-                removeTooltip();
+                return;
               }
+
               tooltipLinkedScope = ttScope.$new();
               tooltip = tooltipLinker(tooltipLinkedScope, function(tooltip) {
                 if (appendToBody) {
@@ -3530,29 +3884,12 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.b
                 }
               });
 
-              if (options.useContentExp) {
-                tooltipLinkedScope.$watch('contentExp()', function(val) {
-                  if (!val && ttScope.isOpen) {
-                    hide();
-                  }
-                });
-
-                tooltipLinkedScope.$watch(function() {
-                  if (!repositionScheduled) {
-                    repositionScheduled = true;
-                    tooltipLinkedScope.$$postDigest(function() {
-                      repositionScheduled = false;
-                      if (ttScope.isOpen) {
-                        positionTooltip();
-                      }
-                    });
-                  }
-                });
-
-              }
+              prepObservers();
             }
 
             function removeTooltip() {
+              unregisterObservers();
+
               transitionTimeout = null;
               if (tooltip) {
                 tooltip.remove();
@@ -3564,31 +3901,32 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.b
               }
             }
 
+            /**
+             * Set the inital scope values. Once
+             * the tooltip is created, the observers
+             * will be added to keep things in synch.
+             */
             function prepareTooltip() {
-              prepPopupClass();
-              prepPlacement();
-              prepPopupDelay();
+              ttScope.title = attrs[prefix + 'Title'];
+              if (contentParse) {
+                ttScope.content = contentParse(scope);
+              } else {
+                ttScope.content = attrs[ttType];
+              }
+              ttScope.popupClass = attrs[prefix + 'Class'];
+              ttScope.placement = angular.isDefined(attrs[prefix + 'Placement']) ? attrs[prefix + 'Placement'] : options.placement;
+
+              var delay = parseInt(attrs[prefix + 'PopupDelay'], 10);
+              ttScope.popupDelay = !isNaN(delay) ? delay : options.popupDelay;
             }
 
             ttScope.contentExp = function() {
-              return scope.$eval(attrs[type]);
+              return ttScope.content;
             };
 
             /**
              * Observe the relevant attributes.
              */
-            if (!options.useContentExp) {
-              attrs.$observe(type, function(val) {
-                ttScope.content = val;
-
-                if (!val && ttScope.isOpen) {
-                  hide();
-                } else {
-                  positionTooltip();
-                }
-              });
-            }
-
             attrs.$observe('disabled', function(val) {
               if (popupTimeout && val) {
                 $timeout.cancel(popupTimeout);
@@ -3600,39 +3938,80 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.b
               }
             });
 
-            attrs.$observe(prefix + 'Title', function(val) {
-              ttScope.title = val;
-              positionTooltip();
-            });
-
-            attrs.$observe(prefix + 'Placement', function() {
-              if (ttScope.isOpen) {
-                prepPlacement();
-                positionTooltip();
-              }
-            });
-
-            if (isOpenExp) {
-              scope.$watch(isOpenExp, function(val) {
-                if (val !== ttScope.isOpen) {
+            if (isOpenParse) {
+              scope.$watch(isOpenParse, function(val) {
+                /*jshint -W018 */
+                if (!val === ttScope.isOpen) {
                   toggleTooltipBind();
                 }
               });
             }
 
-            function prepPopupClass() {
-              ttScope.popupClass = attrs[prefix + 'Class'];
+            function prepObservers() {
+              observers.length = 0;
+
+              if (contentParse) {
+                observers.push(
+                  scope.$watch(contentParse, function(val) {
+                    ttScope.content = val;
+                    if (!val && ttScope.isOpen) {
+                      hide();
+                    }
+                  })
+                );
+
+                observers.push(
+                  tooltipLinkedScope.$watch(function() {
+                    if (!repositionScheduled) {
+                      repositionScheduled = true;
+                      tooltipLinkedScope.$$postDigest(function() {
+                        repositionScheduled = false;
+                        if (ttScope.isOpen) {
+                          positionTooltip();
+                        }
+                      });
+                    }
+                  })
+                );
+              } else {
+                observers.push(
+                  attrs.$observe(ttType, function(val) {
+                    ttScope.content = val;
+                    if (!val && ttScope.isOpen) {
+                      hide();
+                    } else {
+                      positionTooltip();
+                    }
+                  })
+                );
+              }
+
+              observers.push(
+                attrs.$observe(prefix + 'Title', function(val) {
+                  ttScope.title = val;
+                  if (ttScope.isOpen) {
+                    positionTooltip();
+                  }
+                })
+              );
+
+              observers.push(
+                attrs.$observe(prefix + 'Placement', function(val) {
+                  ttScope.placement = val ? val : options.placement;
+                  if (ttScope.isOpen) {
+                    positionTooltip();
+                  }
+                })
+              );
             }
 
-            function prepPlacement() {
-              var val = attrs[prefix + 'Placement'];
-              ttScope.placement = angular.isDefined(val) ? val : options.placement;
-            }
-
-            function prepPopupDelay() {
-              var val = attrs[prefix + 'PopupDelay'];
-              var delay = parseInt(val, 10);
-              ttScope.popupDelay = !isNaN(delay) ? delay : options.popupDelay;
+            function unregisterObservers() {
+              if (observers.length) {
+                angular.forEach(observers, function(observer) {
+                  observer();
+                });
+                observers.length = 0;
+              }
             }
 
             var unregisterTriggers = function() {
@@ -3640,7 +4019,9 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.b
                 element.unbind(trigger, showTooltipBind);
               });
               triggers.hide.forEach(function(trigger) {
-                element.unbind(trigger, hideTooltipBind);
+                trigger.split(' ').forEach(function(hideTrigger) {
+                  element[0].removeEventListener(hideTrigger, hideTooltipBind);
+                });
               });
             };
 
@@ -3657,8 +4038,16 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.b
                     element[0].addEventListener(trigger, toggleTooltipBind);
                   } else if (trigger) {
                     element[0].addEventListener(trigger, showTooltipBind);
-                    element[0].addEventListener(triggers.hide[idx], hideTooltipBind);
+                    triggers.hide[idx].split(' ').forEach(function(trigger) {
+                      element[0].addEventListener(trigger, hideTooltipBind);
+                    });
                   }
+
+                  element.on('keypress', function(e) {
+                    if (e.which === 27) {
+                      hideTooltipBind();
+                    }
+                  });
                 });
               }
             }
@@ -3829,28 +4218,6 @@ function ($animate ,  $sce ,  $compile ,  $templateRequest) {
   return $tooltip('tooltipHtml', 'tooltip', 'mouseenter', {
     useContentExp: true
   });
-}])
-
-/*
-Deprecated
-*/
-.directive('tooltipHtmlUnsafePopup', function() {
-  return {
-    restrict: 'EA',
-    replace: true,
-    scope: { content: '@', placement: '@', popupClass: '@', animation: '&', isOpen: '&' },
-    templateUrl: 'template/tooltip/tooltip-html-unsafe-popup.html'
-  };
-})
-
-.value('tooltipHtmlUnsafeSuppressDeprecated', false)
-.directive('tooltipHtmlUnsafe', [
-          '$tooltip', 'tooltipHtmlUnsafeSuppressDeprecated', '$log',
-function($tooltip ,  tooltipHtmlUnsafeSuppressDeprecated ,  $log) {
-  if (!tooltipHtmlUnsafeSuppressDeprecated) {
-    $log.warn('tooltip-html-unsafe is now deprecated. Use tooltip-html or tooltip-template instead.');
-  }
-  return $tooltip('tooltipHtmlUnsafe', 'tooltip', 'mouseenter');
 }]);
 
 /**
@@ -3920,7 +4287,7 @@ angular.module('ui.bootstrap.progressbar', [])
   this.bars = [];
   $scope.max = angular.isDefined($scope.max) ? $scope.max : progressConfig.max;
 
-  this.addBar = function(bar, element) {
+  this.addBar = function(bar, element, attrs) {
     if (!animate) {
       element.css({'transition': 'none'});
     }
@@ -3928,6 +4295,7 @@ angular.module('ui.bootstrap.progressbar', [])
     this.bars.push(bar);
 
     bar.max = $scope.max;
+    bar.title = attrs && angular.isDefined(attrs.title) ? attrs.title : 'progressbar';
 
     bar.$watch('value', function(value) {
       bar.recalculatePercentage();
@@ -3985,11 +4353,12 @@ angular.module('ui.bootstrap.progressbar', [])
     controller: 'ProgressController',
     require: 'progress',
     scope: {
-      max: '=?'
+      max: '=?',
+      title: '@?'
     },
     templateUrl: 'template/progressbar/progress.html',
     link: function() {
-      if ($progressSuppressWarning) {
+      if (!$progressSuppressWarning) {
         $log.warn('progress is now deprecated. Use uib-progress instead');
       }
     }
@@ -4008,7 +4377,7 @@ angular.module('ui.bootstrap.progressbar', [])
     },
     templateUrl: 'template/progressbar/bar.html',
     link: function(scope, element, attrs, progressCtrl) {
-      progressCtrl.addBar(scope, element);
+      progressCtrl.addBar(scope, element, attrs);
     }
   };
 })
@@ -4025,7 +4394,7 @@ angular.module('ui.bootstrap.progressbar', [])
     },
     templateUrl: 'template/progressbar/bar.html',
     link: function(scope, element, attrs, progressCtrl) {
-      if ($progressSuppressWarning) {
+      if (!$progressSuppressWarning) {
         $log.warn('bar is now deprecated. Use uib-bar instead');
       }
       progressCtrl.addBar(scope, element);
@@ -4046,7 +4415,7 @@ angular.module('ui.bootstrap.progressbar', [])
     },
     templateUrl: 'template/progressbar/progressbar.html',
     link: function(scope, element, attrs, progressCtrl) {
-      progressCtrl.addBar(scope, angular.element(element.children()[0]));
+      progressCtrl.addBar(scope, angular.element(element.children()[0]), {title: attrs.title});
     }
   };
 });
@@ -4163,7 +4532,7 @@ angular.module('ui.bootstrap.rating', [])
 
 angular.module('ui.bootstrap.tabs', [])
 
-.controller('TabsetController', ['$scope', function TabsetCtrl($scope) {
+.controller('UibTabsetController', ['$scope', function ($scope) {
   var ctrl = this,
       tabs = ctrl.tabs = $scope.tabs = [];
 
@@ -4227,23 +4596,23 @@ angular.module('ui.bootstrap.tabs', [])
  * @example
 <example module="ui.bootstrap">
   <file name="index.html">
-    <tabset>
-      <tab heading="Tab 1"><b>First</b> Content!</tab>
-      <tab heading="Tab 2"><i>Second</i> Content!</tab>
-    </tabset>
+    <uib-tabset>
+      <uib-tab heading="Tab 1"><b>First</b> Content!</uib-tab>
+      <uib-tab heading="Tab 2"><i>Second</i> Content!</uib-tab>
+    </uib-tabset>
     <hr />
-    <tabset vertical="true">
-      <tab heading="Vertical Tab 1"><b>First</b> Vertical Content!</tab>
-      <tab heading="Vertical Tab 2"><i>Second</i> Vertical Content!</tab>
-    </tabset>
-    <tabset justified="true">
-      <tab heading="Justified Tab 1"><b>First</b> Justified Content!</tab>
-      <tab heading="Justified Tab 2"><i>Second</i> Justified Content!</tab>
-    </tabset>
+    <uib-tabset vertical="true">
+      <uib-tab heading="Vertical Tab 1"><b>First</b> Vertical Content!</uib-tab>
+      <uib-tab heading="Vertical Tab 2"><i>Second</i> Vertical Content!</uib-tab>
+    </uib-tabset>
+    <uib-tabset justified="true">
+      <uib-tab heading="Justified Tab 1"><b>First</b> Justified Content!</uib-tab>
+      <uib-tab heading="Justified Tab 2"><i>Second</i> Justified Content!</uib-tab>
+    </uib-tabset>
   </file>
 </example>
  */
-.directive('tabset', function() {
+.directive('uibTabset', function() {
   return {
     restrict: 'EA',
     transclude: true,
@@ -4251,7 +4620,7 @@ angular.module('ui.bootstrap.tabs', [])
     scope: {
       type: '@'
     },
-    controller: 'TabsetController',
+    controller: 'UibTabsetController',
     templateUrl: 'template/tabs/tabset.html',
     link: function(scope, element, attrs) {
       scope.vertical = angular.isDefined(attrs.vertical) ? scope.$parent.$eval(attrs.vertical) : false;
@@ -4284,19 +4653,19 @@ angular.module('ui.bootstrap.tabs', [])
         Enable/disable item 2, using disabled binding
       </button>
       <br />
-      <tabset>
-        <tab heading="Tab 1">First Tab</tab>
-        <tab select="alertMe()">
-          <tab-heading><i class="icon-bell"></i> Alert me!</tab-heading>
+      <uib-tabset>
+        <uib-tab heading="Tab 1">First Tab</uib-tab>
+        <uib-tab select="alertMe()">
+          <uib-tab-heading><i class="icon-bell"></i> Alert me!</tab-heading>
           Second Tab, with alert callback and html heading!
-        </tab>
-        <tab ng-repeat="item in items"
+        </uib-tab>
+        <uib-tab ng-repeat="item in items"
           heading="{{item.title}}"
           disabled="item.disabled"
           active="item.active">
           {{item.content}}
-        </tab>
-      </tabset>
+        </uib-tab>
+      </uib-tabset>
     </div>
   </file>
   <file name="script.js">
@@ -4327,22 +4696,22 @@ angular.module('ui.bootstrap.tabs', [])
  * @example
 <example module="ui.bootstrap">
   <file name="index.html">
-    <tabset>
-      <tab>
-        <tab-heading><b>HTML</b> in my titles?!</tab-heading>
+    <uib-tabset>
+      <uib-tab>
+        <uib-tab-heading><b>HTML</b> in my titles?!</tab-heading>
         And some content, too!
-      </tab>
-      <tab>
-        <tab-heading><i class="icon-heart"></i> Icon heading?!?</tab-heading>
+      </uib-tab>
+      <uib-tab>
+        <uib-tab-heading><i class="icon-heart"></i> Icon heading?!?</tab-heading>
         That's right.
-      </tab>
-    </tabset>
+      </uib-tab>
+    </uib-tabset>
   </file>
 </example>
  */
-.directive('tab', ['$parse', '$log', function($parse, $log) {
+.directive('uibTab', ['$parse', function($parse) {
   return {
-    require: '^tabset',
+    require: '^uibTabset',
     restrict: 'EA',
     replace: true,
     templateUrl: 'template/tabs/tab.html',
@@ -4371,17 +4740,6 @@ angular.module('ui.bootstrap.tabs', [])
         });
       }
 
-      // Deprecation support of "disabled" parameter
-      // fix(tab): IE9 disabled attr renders grey text on enabled tab #2677
-      // This code is duplicated from the lines above to make it easy to remove once
-      // the feature has been completely deprecated
-      if (attrs.disabled) {
-        $log.warn('Use of "disabled" attribute has been deprecated, please use "disable"');
-        scope.$parent.$watch($parse(attrs.disabled), function(value) {
-          scope.disabled = !! value;
-        });
-      }
-
       scope.select = function() {
         if (!scope.disabled) {
           scope.active = true;
@@ -4400,11 +4758,11 @@ angular.module('ui.bootstrap.tabs', [])
   };
 }])
 
-.directive('tabHeadingTransclude', function() {
+.directive('uibTabHeadingTransclude', function() {
   return {
     restrict: 'A',
-    require: '^tab',
-    link: function(scope, elm, attrs, tabCtrl) {
+    require: ['?^uibTab', '?^tab'], // TODO: change to '^uibTab' after deprecation removal
+    link: function(scope, elm) {
       scope.$watch('headingElement', function updateHeadingElement(heading) {
         if (heading) {
           elm.html('');
@@ -4415,12 +4773,12 @@ angular.module('ui.bootstrap.tabs', [])
   };
 })
 
-.directive('tabContentTransclude', function() {
+.directive('uibTabContentTransclude', function() {
   return {
     restrict: 'A',
-    require: '^tabset',
+    require: ['?^uibTabset', '?^tabset'], // TODO: change to '^uibTabset' after deprecation removal
     link: function(scope, elm, attrs) {
-      var tab = scope.$eval(attrs.tabContentTransclude);
+      var tab = scope.$eval(attrs.uibTabContentTransclude);
 
       //Now our tab is ready to be transcluded: both the tab heading area
       //and the tab content area are loaded.  Transclude 'em both.
@@ -4439,15 +4797,159 @@ angular.module('ui.bootstrap.tabs', [])
 
   function isTabHeading(node) {
     return node.tagName && (
-      node.hasAttribute('tab-heading') ||
-      node.hasAttribute('data-tab-heading') ||
-      node.hasAttribute('x-tab-heading') ||
-      node.tagName.toLowerCase() === 'tab-heading' ||
-      node.tagName.toLowerCase() === 'data-tab-heading' ||
-      node.tagName.toLowerCase() === 'x-tab-heading'
+      node.hasAttribute('tab-heading') || // TODO: remove after deprecation removal
+      node.hasAttribute('data-tab-heading') || // TODO: remove after deprecation removal
+      node.hasAttribute('x-tab-heading') || // TODO: remove after deprecation removal
+      node.hasAttribute('uib-tab-heading') ||
+      node.hasAttribute('data-uib-tab-heading') ||
+      node.hasAttribute('x-uib-tab-heading') ||
+      node.tagName.toLowerCase() === 'tab-heading' || // TODO: remove after deprecation removal
+      node.tagName.toLowerCase() === 'data-tab-heading' || // TODO: remove after deprecation removal
+      node.tagName.toLowerCase() === 'x-tab-heading' || // TODO: remove after deprecation removal
+      node.tagName.toLowerCase() === 'uib-tab-heading' ||
+      node.tagName.toLowerCase() === 'data-uib-tab-heading' ||
+      node.tagName.toLowerCase() === 'x-uib-tab-heading'
     );
   }
 });
+
+/* deprecated tabs below */
+
+angular.module('ui.bootstrap.tabs')
+
+  .value('$tabsSuppressWarning', false)
+
+  .directive('tabset', ['$log', '$tabsSuppressWarning', function($log, $tabsSuppressWarning) {
+    return {
+      restrict: 'EA',
+      transclude: true,
+      replace: true,
+      scope: {
+        type: '@'
+      },
+      controller: 'UibTabsetController',
+      templateUrl: 'template/tabs/tabset.html',
+      link: function(scope, element, attrs) {
+
+        if (!$tabsSuppressWarning) {
+          $log.warn('tabset is now deprecated. Use uib-tabset instead.');
+        }
+        scope.vertical = angular.isDefined(attrs.vertical) ? scope.$parent.$eval(attrs.vertical) : false;
+        scope.justified = angular.isDefined(attrs.justified) ? scope.$parent.$eval(attrs.justified) : false;
+      }
+    };
+  }])
+
+  .directive('tab', ['$parse', '$log', '$tabsSuppressWarning', function($parse, $log, $tabsSuppressWarning) {
+    return {
+      require: '^tabset',
+      restrict: 'EA',
+      replace: true,
+      templateUrl: 'template/tabs/tab.html',
+      transclude: true,
+      scope: {
+        active: '=?',
+        heading: '@',
+        onSelect: '&select', //This callback is called in contentHeadingTransclude
+        //once it inserts the tab's content into the dom
+        onDeselect: '&deselect'
+      },
+      controller: function() {
+        //Empty controller so other directives can require being 'under' a tab
+      },
+      link: function(scope, elm, attrs, tabsetCtrl, transclude) {
+        if (!$tabsSuppressWarning) {
+          $log.warn('tab is now deprecated. Use uib-tab instead.');
+        }
+
+        scope.$watch('active', function(active) {
+          if (active) {
+            tabsetCtrl.select(scope);
+          }
+        });
+
+        scope.disabled = false;
+        if (attrs.disable) {
+          scope.$parent.$watch($parse(attrs.disable), function(value) {
+            scope.disabled = !!value;
+          });
+        }
+
+        scope.select = function() {
+          if (!scope.disabled) {
+            scope.active = true;
+          }
+        };
+
+        tabsetCtrl.addTab(scope);
+        scope.$on('$destroy', function() {
+          tabsetCtrl.removeTab(scope);
+        });
+
+        //We need to transclude later, once the content container is ready.
+        //when this link happens, we're inside a tab heading.
+        scope.$transcludeFn = transclude;
+      }
+    };
+  }])
+
+  .directive('tabHeadingTransclude', ['$log', '$tabsSuppressWarning', function($log, $tabsSuppressWarning) {
+    return {
+      restrict: 'A',
+      require: '^tab',
+      link: function(scope, elm) {
+        if (!$tabsSuppressWarning) {
+          $log.warn('tab-heading-transclude is now deprecated. Use uib-tab-heading-transclude instead.');
+        }
+
+        scope.$watch('headingElement', function updateHeadingElement(heading) {
+          if (heading) {
+            elm.html('');
+            elm.append(heading);
+          }
+        });
+      }
+    };
+  }])
+
+  .directive('tabContentTransclude', ['$log', '$tabsSuppressWarning', function($log, $tabsSuppressWarning) {
+    return {
+      restrict: 'A',
+      require: '^tabset',
+      link: function(scope, elm, attrs) {
+        if (!$tabsSuppressWarning) {
+          $log.warn('tab-content-transclude is now deprecated. Use uib-tab-content-transclude instead.');
+        }
+
+        var tab = scope.$eval(attrs.tabContentTransclude);
+
+        //Now our tab is ready to be transcluded: both the tab heading area
+        //and the tab content area are loaded.  Transclude 'em both.
+        tab.$transcludeFn(tab.$parent, function(contents) {
+          angular.forEach(contents, function(node) {
+            if (isTabHeading(node)) {
+              //Let tabHeadingTransclude know.
+              tab.headingElement = node;
+            }
+            else {
+              elm.append(node);
+            }
+          });
+        });
+      }
+    };
+
+    function isTabHeading(node) {
+      return node.tagName && (
+          node.hasAttribute('tab-heading') ||
+          node.hasAttribute('data-tab-heading') ||
+          node.hasAttribute('x-tab-heading') ||
+          node.tagName.toLowerCase() === 'tab-heading' ||
+          node.tagName.toLowerCase() === 'data-tab-heading' ||
+          node.tagName.toLowerCase() === 'x-tab-heading'
+        );
+    }
+  }]);
 
 angular.module('ui.bootstrap.timepicker', [])
 
@@ -4830,96 +5332,6 @@ angular.module('ui.bootstrap.timepicker', [])
     }
   };
 });
-
-angular.module('ui.bootstrap.transition', [])
-
-.value('$transitionSuppressDeprecated', false)
-/**
- * $transition service provides a consistent interface to trigger CSS 3 transitions and to be informed when they complete.
- * @param  {DOMElement} element  The DOMElement that will be animated.
- * @param  {string|object|function} trigger  The thing that will cause the transition to start:
- *   - As a string, it represents the css class to be added to the element.
- *   - As an object, it represents a hash of style attributes to be applied to the element.
- *   - As a function, it represents a function to be called that will cause the transition to occur.
- * @return {Promise}  A promise that is resolved when the transition finishes.
- */
-.factory('$transition', [
-        '$q', '$timeout', '$rootScope', '$log', '$transitionSuppressDeprecated',
-function($q ,  $timeout ,  $rootScope ,  $log ,  $transitionSuppressDeprecated) {
-
-  if (!$transitionSuppressDeprecated) {
-    $log.warn('$transition is now deprecated. Use $animate from ngAnimate instead.');
-  }
-
-  var $transition = function(element, trigger, options) {
-    options = options || {};
-    var deferred = $q.defer();
-    var endEventName = $transition[options.animation ? 'animationEndEventName' : 'transitionEndEventName'];
-
-    var transitionEndHandler = function(event) {
-      $rootScope.$apply(function() {
-        element.unbind(endEventName, transitionEndHandler);
-        deferred.resolve(element);
-      });
-    };
-
-    if (endEventName) {
-      element.bind(endEventName, transitionEndHandler);
-    }
-
-    // Wrap in a timeout to allow the browser time to update the DOM before the transition is to occur
-    $timeout(function() {
-      if ( angular.isString(trigger) ) {
-        element.addClass(trigger);
-      } else if ( angular.isFunction(trigger) ) {
-        trigger(element);
-      } else if ( angular.isObject(trigger) ) {
-        element.css(trigger);
-      }
-      //If browser does not support transitions, instantly resolve
-      if ( !endEventName ) {
-        deferred.resolve(element);
-      }
-    });
-
-    // Add our custom cancel function to the promise that is returned
-    // We can call this if we are about to run a new transition, which we know will prevent this transition from ending,
-    // i.e. it will therefore never raise a transitionEnd event for that transition
-    deferred.promise.cancel = function() {
-      if ( endEventName ) {
-        element.unbind(endEventName, transitionEndHandler);
-      }
-      deferred.reject('Transition cancelled');
-    };
-
-    return deferred.promise;
-  };
-
-  // Work out the name of the transitionEnd event
-  var transElement = document.createElement('trans');
-  var transitionEndEventNames = {
-    'WebkitTransition': 'webkitTransitionEnd',
-    'MozTransition': 'transitionend',
-    'OTransition': 'oTransitionEnd',
-    'transition': 'transitionend'
-  };
-  var animationEndEventNames = {
-    'WebkitTransition': 'webkitAnimationEnd',
-    'MozTransition': 'animationend',
-    'OTransition': 'oAnimationEnd',
-    'transition': 'animationend'
-  };
-  function findEndEventName(endEventNames) {
-    for (var name in endEventNames){
-      if (transElement.style[name] !== undefined) {
-        return endEventNames[name];
-      }
-    }
-  }
-  $transition.transitionEndEventName = findEndEventName(transitionEndEventNames);
-  $transition.animationEndEventName = findEndEventName(animationEndEventNames);
-  return $transition;
-}]);
 
 angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position'])
 
